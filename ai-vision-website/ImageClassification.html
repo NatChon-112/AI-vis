@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Vision Tasks - Image Classification</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>IMAGE CLASSIFICATION</h1>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about.html">About Us</a></li> 
+            <li><a href="ObjectDetection.html">Object Detection</a></li>
+            <li><a href="ImageClassification.html">Image Classification</a></li>
+            <li><a href="ImageSegmentation.html">Image Segmentation</a></li>
+            <li><a href="FaceDetection.html">Face Detection</a></li>
+            <li><a href="GestureRecognition.html">Gesture Recognition</a></li>
+        </ul>
+    </nav>
+    <main>
+    
+        <section class="main-container">
+            <div id="content" style="text-align: center;"></div>
+            <h2 class="main-title">การจัดประเภทรูปภาพ</h2>
+            <p class="description">
+                การทำงานของ Image Classification คือการระบุชนิดของวัตถุในภาพโดยใช้โมเดล <br> Machine Learning โมเดลจะทำการวิเคราะห์ภาพและระบุว่าในภาพมีอะไรบ้างเช่น แมว, หมา, รถ เป็นต้น <br>
+            </p>
+            <div id="content" style="text-align: center;">
+            <div class="camera-container">
+                <video id="video" autoplay></video>
+            </div>
+            <div>
+                <button id="startButton" class="button">เปิดกล้อง</button>
+                <button id="stopButton" class="button">ปิดกล้อง</button>
+                <button id="captureButton" class="button">ถ่ายภาพและจำแนก</button>
+            </div>
+            <div id="classificationResult"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p> Chonticha112 & Jullajuk102</p>
+    </footer>
+
+    <script>
+        const video = document.getElementById('video');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const captureButton = document.getElementById('captureButton');
+        const classificationResult = document.getElementById('classificationResult');
+
+        let model;
+
+        // โหลดโมเดลสำหรับ Image Classification
+        async function loadModel() {
+            model = await tf.loadGraphModel('path_to_your_model/model.json'); // แทนที่ path ด้วยพาธของโมเดล
+        }
+
+        loadModel(); // เรียกใช้เมื่อโหลดหน้า
+
+        startButton.addEventListener('click', async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+        });
+
+        stopButton.addEventListener('click', () => {
+            const stream = video.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            video.srcObject = null;
+        });
+
+        captureButton.addEventListener('click', () => {
+            classifyImage();
+        });
+
+        async function classifyImage() {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageTensor = tf.browser.fromPixels(canvas);
+            const resizedImage = tf.image.resizeBilinear(imageTensor, [224, 224]); // ขนาดอาจแตกต่างตามโมเดล
+            const inputTensor = resizedImage.expandDims(0).toFloat();
+
+            const prediction = await model.predict(inputTensor).data();
+            displayClassificationResult(prediction);
+        }
+
+        function displayClassificationResult(prediction) {
+            // สมมติว่าผลลัพธ์เป็น Array ที่เก็บความน่าจะเป็นของแต่ละ class
+            // อาจต้องมีการทำ mapping ของ class ด้วย
+            const classIndex = prediction.indexOf(Math.max(...prediction));
+            const labels = ['แมว', 'หมา', 'รถ', 'อื่นๆ']; // แทนที่ด้วย label จริงจากโมเดล
+            classificationResult.innerText = `วัตถุในภาพคือ: ${labels[classIndex]}`;
+        }
+    </script>
+
+</body>
+</html>

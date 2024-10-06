@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Vision Tasks - Image Classification</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>IMAGE SEGMENTATION</h1>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about.html">About Us</a></li> 
+            <li><a href="ObjectDetection.html">Object Detection</a></li>
+            <li><a href="ImageClassification.html">Image Classification</a></li>
+            <li><a href="ImageSegmentation.html">Image Segmentation</a></li>
+            <li><a href="FaceDetection.html">Face Detection</a></li>
+            <li><a href="GestureRecognition.html">Gesture Recognition</a></li>
+        </ul>
+    </nav>
+    <main>
+        <section class="main-container">
+            <div id="content" style="text-align: center;"></div>
+            <h2 class="main-title">การแบ่งกลุ่มรูปภาพ</h2>
+            <p class="description">
+                การทำงานของ Image Segmentation คือการแบ่งภาพออกเป็นส่วนต่างๆ โดยสามารถแยกวัตถุออกจากพื้นหลังได้อย่างชัดเจน <br> โมเดลจะระบุแต่ละพิกเซลว่าเป็นส่วนหนึ่งของวัตถุใดในภาพ เช่น คน, รถ, พื้นหลัง เป็นต้น <br>
+            </p>
+            <div id="content" style="text-align: center;"></div>
+            <div class="camera-container">
+                <video id="video" autoplay></video>
+                <canvas id="canvas" style="display: none;"></canvas>
+            </div>
+            <div>
+                <button id="startButton" class="button">เปิดกล้อง</button>
+                <button id="stopButton" class="button">ปิดกล้อง</button>
+                <button id="segmentButton" class="button">แยกส่วนภาพ</button>
+            </div>
+            <div id="segmentationResult"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p> Chonticha112 & Jullajuk102</p>
+    </footer>
+
+    <script>
+        const video = document.getElementById('video');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const segmentButton = document.getElementById('segmentButton');
+        const canvas = document.getElementById('canvas');
+        const segmentationResult = document.getElementById('segmentationResult');
+        let model;
+
+        async function loadModel() {
+            // โหลดโมเดลสำหรับ Image Segmentation เช่น deeplabv3 หรืออื่นๆ
+            model = await tf.loadGraphModel('path_to_your_model/model.json'); // เปลี่ยนเป็น path ที่ถูกต้อง
+        }
+
+        loadModel();
+
+        startButton.addEventListener('click', async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+        });
+
+        stopButton.addEventListener('click', () => {
+            const stream = video.srcObject;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+            video.srcObject = null;
+        });
+
+        segmentButton.addEventListener('click', () => {
+            performSegmentation();
+        });
+
+        async function performSegmentation() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const imageTensor = tf.browser.fromPixels(canvas);
+            const resizedImage = tf.image.resizeBilinear(imageTensor, [224, 224]);
+            const inputTensor = resizedImage.expandDims(0).toFloat();
+
+            const segmentationMap = await model.predict(inputTensor).data();
+
+            displaySegmentationResult(segmentationMap);
+        }
+
+        function displaySegmentationResult(segmentationMap) {
+            // การแสดงผลของ segmentation map
+            const ctx = canvas.getContext('2d');
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < segmentationMap.length; i++) {
+                const classIndex = segmentationMap[i];
+                if (classIndex === 1) { // วัตถุเช่นคน
+                    imageData.data[i * 4 + 0] = 0; // แดง
+                    imageData.data[i * 4 + 1] = 255; // เขียว
+                    imageData.data[i * 4 + 2] = 0; // น้ำเงิน
+                    imageData.data[i * 4 + 3] = 255; // ความโปร่งใส
+                } else {
+                    imageData.data[i * 4 + 3] = 0; // ทำให้พื้นหลังโปร่งใส
+                }
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+            segmentationResult.appendChild(canvas); // แสดงภาพ segmentation
+        }
+    </script>
+
+</body>
+</html>

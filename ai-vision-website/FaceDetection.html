@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Vision Tasks - Face Detection</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js"></script> <!-- เพิ่มไลบรารี Face-api.js -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>FACE DETECTION</h1>
+    </header>
+
+    <!-- Navigation Bar -->
+    <nav>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="about.html">About Us</a></li> 
+            <li><a href="ObjectDetection.html">Object Detection</a></li>
+            <li><a href="ImageClassification.html">Image Classification</a></li>
+            <li><a href="ImageSegmentation.html">Image Segmentation</a></li>
+            <li><a href="FaceDetection.html">Face Detection</a></li>
+            <li><a href="GestureRecognition.html">Gesture Recognition</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section class="main-container">
+            <div id="content" style="text-align: center;"></div>
+            <h2 class="main-title">การตรวจจับใบหน้า</h2>
+            <p class="description">
+                การทำงานของการตรวจจับใบหน้าคือการตรวจหาตำแหน่งของใบหน้าในภาพหรือวิดีโอ โดยสามารถบอกตำแหน่งและลักษณะของใบหน้า <br> เช่น ตา จมูก ปาก เป็นต้น โมเดล Machine Learning จะตรวจหาคุณลักษณะของใบหน้าและระบุจุดบนใบหน้าของคุณ
+            </p>
+            <div class="camera-container">
+                <video id="video" autoplay></video>
+                <canvas id="canvas" style="display: none;"></canvas> <!-- Canvas สำหรับการวาดกรอบใบหน้า -->
+            </div>
+            <div>
+                <button id="startButton" class="button">เปิดกล้อง</button>
+                <button id="stopButton" class="button">ปิดกล้อง</button>
+                <button id="detectButton" class="button">ตรวจจับใบหน้า</button>
+            </div>
+            <div id="detectionResult"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p> Chonticha112 & Jullajuk102</p>
+    </footer>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const detectButton = document.getElementById('detectButton');
+        let stream;
+
+        // ฟังก์ชันเริ่มต้นกล้อง
+        startButton.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                console.log("เปิดใช้งานกล้องสำเร็จ");
+            } catch (error) {
+                console.error("ไม่สามารถเปิดกล้องได้: ", error);
+                alert("เกิดข้อผิดพลาด: " + error.message);
+            }
+        });
+
+        // ฟังก์ชันปิดกล้อง
+        stopButton.addEventListener('click', () => {
+            if (stream) {
+                const tracks = stream.getTracks();
+                tracks.forEach(track => track.stop());
+                video.srcObject = null;
+                console.log("กล้องถูกปิด");
+            } else {
+                console.error("ไม่มีกล้องที่เปิดอยู่");
+            }
+        });
+
+        // โหลดโมเดล Face-api.js สำหรับการตรวจจับใบหน้า
+        async function loadModels() {
+            await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+        }
+
+        // ฟังก์ชันตรวจจับใบหน้า
+        detectButton.addEventListener('click', async () => {
+            console.log("กำลังโหลดโมเดล...");
+            await loadModels();
+            console.log("โมเดลถูกโหลดแล้ว!");
+
+            canvas.style.display = "block"; // แสดง canvas สำหรับวาดกรอบใบหน้า
+
+            const displaySize = { width: video.width, height: video.height };
+            faceapi.matchDimensions(canvas, displaySize);
+
+            // ตรวจจับใบหน้าในวิดีโอและวาดกรอบ
+            setInterval(async () => {
+                const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptors();
+                const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                context.clearRect(0, 0, canvas.width, canvas.height); // ล้าง canvas ก่อนวาดใหม่
+                faceapi.draw.drawDetections(canvas, resizedDetections);
+                faceapi.draw.drawFaceLandmarks(canvas, resizedDetections);
+            }, 100); // ทำการตรวจจับทุกๆ 100 มิลลิวินาที
+        });
+    </script>
+
+</body>
+</html>
